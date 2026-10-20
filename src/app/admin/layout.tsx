@@ -1,12 +1,14 @@
 /**
  * Layout admin — cek sesi server-side.
- * Sidebar hanya ditampilkan jika sesi admin valid.
  *
- * `instant = false` menyatakan ke Next.js 16 (dengan cacheComponents)
- * bahwa semua route admin boleh blocking — tidak diharapkan instant.
- * Ini menghapus prerender warning untuk cookies() di admin layout.
+ * Jika tidak ada sesi → redirect ke /admin/login.
+ * Sidebar navigasi ditampilkan untuk semua route admin yang terautentikasi.
+ *
+ * `instant = false` agar Next.js 16 tidak memvalidasi route ini sebagai
+ * instant navigation (admin routes sengaja blocking karena baca cookie).
  */
 import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 import { getAdminSessionFromCookies } from '@/lib/session';
 import AdminSidebar from './AdminSidebar';
 
@@ -14,12 +16,25 @@ export const metadata = {
   title: 'Admin — E-Voting Ketua RT',
 };
 
-// Semua route admin boleh blocking (tidak instant) karena membaca cookie sesi
 export const instant = false;
 
-// Komponen server terpisah agar Suspense bisa membungkusnya
-async function AdminLayoutInner({ children }: { children: React.ReactNode }) {
+// Halaman login tidak butuh sesi — daftar path yang dikecualikan dari guard
+const PUBLIC_ADMIN_PATHS = ['/admin/login'];
+
+async function AdminLayoutInner({
+  children,
+  pathname,
+}: {
+  children: React.ReactNode;
+  pathname?: string;
+}) {
   const session = await getAdminSessionFromCookies();
+
+  // Jika bukan halaman publik dan tidak ada sesi → redirect ke login
+  const isPublicPath = PUBLIC_ADMIN_PATHS.some((p) => pathname?.startsWith(p));
+  if (!session && !isPublicPath) {
+    redirect('/admin/login');
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
