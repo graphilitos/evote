@@ -68,6 +68,9 @@ export default function AdminDashboardClient({
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetInput, setResetInput] = useState('');
+  const [resetting, setResetting] = useState(false);
 
   const nextAction = STATUS_NEXT[status];
   const unusedTokens = totalTokens - usedTokens;
@@ -105,6 +108,20 @@ export default function AdminDashboardClient({
       body: JSON.stringify({ show_results_public: newVal }),
     });
     if (res.ok) setShowPublic(newVal);
+  }
+
+  async function handleResetAll() {
+    setResetting(true); setMsg('');
+    const res = await fetch('/api/admin/reset', {
+      method: 'POST',
+      headers: { 'x-confirm-reset': 'RESET_ALL_DATA' },
+    });
+    const data = await res.json();
+    setResetting(false); setResetConfirm(false); setResetInput('');
+    if (!res.ok) { setMsg('❌ ' + (data.error ?? 'Gagal reset.')); return; }
+    setStatus('draft'); setShowPublic(false);
+    setMsg('✅ Semua data berhasil direset. Halaman akan dimuat ulang...');
+    setTimeout(() => router.refresh(), 1500);
   }
 
   const statCards = [
@@ -342,68 +359,63 @@ export default function AdminDashboardClient({
       </div>
 
       {/* ───── Toggle hasil publik ───── */}
-      <div className="glass-card" style={{ padding: '1.5rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '1.5rem',
-          }}
-        >
+      <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem' }}>
           <div>
-            <h2 style={{ fontWeight: 700, marginBottom: '0.25rem', fontSize: '1rem' }}>
-              Tampilkan Hasil ke Publik
-            </h2>
+            <h2 style={{ fontWeight: 700, marginBottom: '0.25rem', fontSize: '1rem' }}>Tampilkan Hasil ke Publik</h2>
             <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-              Aktifkan agar hasil bisa dilihat di{' '}
-              <code
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  padding: '0.1rem 0.4rem',
-                  borderRadius: '4px',
-                  fontSize: '0.8rem',
-                }}
-              >
-                /hasil
-              </code>{' '}
-              tanpa login.
+              Aktifkan agar hasil bisa dilihat di <code style={{ background: 'rgba(255,255,255,0.08)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.8rem' }}>/hasil</code> tanpa login.
             </p>
           </div>
-          <button
-            id="btn-toggle-public"
-            onClick={handleTogglePublic}
-            style={{
-              flexShrink: 0,
-              width: '52px',
-              height: '28px',
-              borderRadius: '999px',
-              background: showPublic
-                ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
-                : 'rgba(255,255,255,0.12)',
-              border: 'none',
-              cursor: 'pointer',
-              position: 'relative',
-              transition: 'background 0.2s ease',
-            }}
-            role="switch"
-            aria-checked={showPublic}
-            aria-label="Toggle tampilkan hasil publik"
-          >
-            <span
-              style={{
-                position: 'absolute',
-                top: '4px',
-                left: showPublic ? '26px' : '4px',
-                width: '20px',
-                height: '20px',
-                borderRadius: '50%',
-                background: '#fff',
-                transition: 'left 0.2s ease',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-              }}
-            />
+          <button id="btn-toggle-public" onClick={handleTogglePublic}
+            style={{ flexShrink: 0, width: '52px', height: '28px', borderRadius: '999px', background: showPublic ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : 'rgba(255,255,255,0.12)', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s ease' }}
+            role="switch" aria-checked={showPublic} aria-label="Toggle tampilkan hasil publik">
+            <span style={{ position: 'absolute', top: '4px', left: showPublic ? '26px' : '4px', width: '20px', height: '20px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s ease', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
           </button>
+        </div>
+      </div>
+
+      {/* ───── Reset All ───── */}
+      <div className="glass-card" style={{ padding: '1.5rem', border: '1px solid rgba(239,68,68,0.2)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div>
+            <h2 style={{ fontWeight: 700, marginBottom: '0.25rem', fontSize: '1rem', color: '#fca5a5' }}>⚠️ Reset Semua Data</h2>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem', lineHeight: 1.5 }}>
+              Hapus semua calon, token, dan suara. Status kembali ke Draft.
+              <br /><strong style={{ color: '#fca5a5' }}>Tindakan ini permanen dan tidak bisa dibatalkan.</strong>
+            </p>
+          </div>
+          {!resetConfirm ? (
+            <button id="btn-reset-all" className="btn-danger" onClick={() => setResetConfirm(true)}
+              style={{ flexShrink: 0, padding: '0.625rem 1.25rem', fontSize: '0.875rem' }}>
+              🗑️ Reset Semua
+            </button>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '240px' }}>
+              <p style={{ fontSize: '0.8rem', color: '#fca5a5', fontWeight: 600 }}>Ketik <code style={{ background: 'rgba(239,68,68,0.15)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>RESET</code> untuk konfirmasi:</p>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Ketik RESET"
+                value={resetInput}
+                onChange={(e) => setResetInput(e.target.value)}
+                style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem', borderColor: 'rgba(239,68,68,0.4)' }}
+                autoFocus
+              />
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn-secondary" onClick={() => { setResetConfirm(false); setResetInput(''); }} style={{ flex: 1, padding: '0.5rem', fontSize: '0.82rem' }}>Batal</button>
+                <button
+                  id="btn-confirm-reset"
+                  className="btn-danger"
+                  onClick={handleResetAll}
+                  disabled={resetInput !== 'RESET' || resetting}
+                  style={{ flex: 2, padding: '0.5rem', fontSize: '0.82rem', background: resetInput === 'RESET' ? 'rgba(239,68,68,0.3)' : undefined }}
+                >
+                  {resetting ? 'Mereset...' : '🗑️ Ya, Reset Sekarang'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
