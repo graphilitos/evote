@@ -20,13 +20,17 @@ function getClient(): SupabaseClient {
     );
   }
 
-  _client = createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      // Nonaktifkan auto-refresh token — tidak diperlukan untuk service role
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+  _client = createClient(
+    supabaseUrl.replace(/\/+$/, ''),  // hapus trailing slash jika ada
+    serviceRoleKey,
+    {
+      auth: {
+        // Nonaktifkan auto-refresh token — tidak diperlukan untuk service role
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
 
   return _client;
 }
