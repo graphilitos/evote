@@ -30,13 +30,23 @@ export async function POST(request: NextRequest) {
   if (authError) return authError;
 
   // Cek status — calon hanya bisa ditambah saat draft
-  const { data: settings } = await supabase
+  // Jika settings null (tabel belum ada/migration belum jalan), izinkan sebagai fallback
+  const { data: settings, error: settingsError } = await supabase
     .from('election_settings')
     .select('status')
     .eq('id', 1)
     .single();
 
-  if (settings?.status !== 'draft') {
+  // Jika ada error DB selain "not found", laporkan
+  if (settingsError && settingsError.code !== 'PGRST116') {
+    return NextResponse.json(
+      { error: 'Gagal membaca status pemilihan: ' + settingsError.message },
+      { status: 500 }
+    );
+  }
+
+  // Jika settings ada DAN statusnya bukan draft, tolak
+  if (settings && settings.status !== 'draft') {
     return NextResponse.json(
       { error: 'Calon hanya bisa ditambah saat status pemilihan adalah Draft.' },
       { status: 403 }
