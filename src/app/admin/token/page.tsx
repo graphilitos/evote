@@ -59,13 +59,15 @@ export default function AdminTokenPage() {
   }
 
   function downloadCsv() {
-    const header = 'Token,Batch\n';
-    const rows = generatedTokens.map((t) => `${t},${form.batch}`).join('\n');
+    const header = 'No,Token,Batch,Status\n';
+    const rows = generatedTokens
+      .map((t, i) => `${i + 1},${t},"${form.batch}",Belum Dipakai`)
+      .join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `token_${form.batch}_${Date.now()}.csv`;
+    a.download = `token_${form.batch.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
