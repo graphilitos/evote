@@ -65,20 +65,22 @@ export default function AdminHasilPage() {
   [voteDetails, detailSearch]);
 
   function exportSummaryCsv() {
-    const header = 'Peringkat,Nama Calon,Usia,Jumlah Suara,Persentase\n';
+    const BOM = '\uFEFF';
+    const header = 'Peringkat;Nama Calon;Usia;Jumlah Suara;Persentase\n';
     const rows = results.map((r, i) => {
       const pct = totalVotes > 0 ? ((Number(r.vote_count) / totalVotes) * 100).toFixed(1) : '0.0';
-      return `${i + 1},"${r.name}",${r.age ?? ''},${r.vote_count},${pct}%`;
+      return `${i + 1};"${r.name}";${r.age ?? ''};${r.vote_count};${pct}%`;
     }).join('\n');
-    downloadBlob(header + rows, `hasil_suara_${Date.now()}.csv`);
+    downloadBlob(BOM + 'sep=;\n' + header + rows, `hasil_suara_${Date.now()}.csv`);
   }
 
   function exportDetailCsv() {
-    const header = 'Token,Calon Yang Dipilih,Usia Calon\n';
+    const BOM = '\uFEFF';
+    const header = 'Token;Calon Yang Dipilih;Usia Calon\n';
     const rows = voteDetails.map((d) =>
-      `${d.token_code},"${d.candidate_name}",${d.candidate_age ?? ''}`
+      `${d.token_code};"${d.candidate_name}";${d.candidate_age ?? ''}`
     ).join('\n');
-    downloadBlob(header + rows, `detail_suara_${Date.now()}.csv`);
+    downloadBlob(BOM + 'sep=;\n' + header + rows, `detail_suara_${Date.now()}.csv`);
   }
 
   function downloadBlob(content: string, filename: string) {

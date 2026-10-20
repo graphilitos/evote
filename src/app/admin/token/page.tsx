@@ -59,11 +59,18 @@ export default function AdminTokenPage() {
   }
 
   function downloadCsv() {
-    const header = 'No,Token,Batch,Status\n';
+    // BOM UTF-8 agar Excel Windows baca karakter khusus dengan benar
+    const BOM = '\uFEFF';
+    // "sep=;" memberitahu Excel pakai titik-koma sebagai pemisah kolom
+    const sepHint = 'sep=;\n';
+    const header = 'No;Token;Batch;Status\n';
     const rows = generatedTokens
-      .map((t, i) => `${i + 1},${t},"${form.batch}",Belum Dipakai`)
+      .map((t, i) => `${i + 1};${t};"${form.batch}";Belum Dipakai`)
       .join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(
+      [BOM + sepHint + header + rows],
+      { type: 'text/csv;charset=utf-8;' }
+    );
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
