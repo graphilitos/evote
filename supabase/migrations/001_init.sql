@@ -1,5 +1,6 @@
 -- ============================================================
--- Migration 001: Inisialisasi skema E-Voting Ketua RT
+-- Migration 001 (SAFE RE-RUN): Inisialisasi skema E-Voting Ketua RT
+-- Aman dijalankan berkali-kali — semua CREATE pakai IF NOT EXISTS
 -- ============================================================
 
 -- Extension
@@ -8,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================================
 -- TABEL: candidates
 -- ============================================================
-CREATE TABLE candidates (
+CREATE TABLE IF NOT EXISTS candidates (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT        NOT NULL,
   description TEXT,
@@ -17,32 +18,27 @@ CREATE TABLE candidates (
 
 -- ============================================================
 -- TABEL: tokens
--- Catatan keamanan: TIDAK ada kolom waktu pemakaian agar
--- tidak bisa dikorelasikan dengan waktu pemungutan suara.
 -- ============================================================
-CREATE TABLE tokens (
-  code        TEXT        PRIMARY KEY,          -- 8 karakter, uppercase, tanpa 0/O/1/I/L
+CREATE TABLE IF NOT EXISTS tokens (
+  code        TEXT        PRIMARY KEY,
   used        BOOLEAN     NOT NULL DEFAULT FALSE,
-  batch       TEXT        NOT NULL,             -- label angkatan generate
+  batch       TEXT        NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
 -- TABEL: votes
--- Catatan keamanan KRITIS: TIDAK ada kolom token_code,
--- TIDAK ada created_at. Satu-satunya kolom data adalah
--- candidate_id sehingga suara tidak dapat dilacak ke pemilih.
+-- Tidak ada kolom token/timestamp — privasi pemilih terjamin.
 -- ============================================================
-CREATE TABLE votes (
+CREATE TABLE IF NOT EXISTS votes (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   candidate_id  UUID NOT NULL REFERENCES candidates(id) ON DELETE RESTRICT
 );
 
 -- ============================================================
--- TABEL: election_settings
--- Hanya satu baris (id = 1).
+-- TABEL: election_settings (hanya 1 baris, id = 1)
 -- ============================================================
-CREATE TABLE election_settings (
+CREATE TABLE IF NOT EXISTS election_settings (
   id                   INT  PRIMARY KEY DEFAULT 1,
   status               TEXT NOT NULL DEFAULT 'draft'
                         CHECK (status IN ('draft', 'open', 'closed')),
@@ -50,35 +46,34 @@ CREATE TABLE election_settings (
   CONSTRAINT single_row CHECK (id = 1)
 );
 
--- Seed satu baris default
+-- Seed baris default (abaikan jika sudah ada)
 INSERT INTO election_settings (id, status, show_results_public)
-VALUES (1, 'draft', FALSE);
+VALUES (1, 'draft', FALSE)
+ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
--- TABEL: vote_attempts
--- Menyimpan hash IP (bukan IP asli) untuk rate limiting.
+-- TABEL: vote_attempts (rate limiting by IP hash)
 -- ============================================================
-CREATE TABLE vote_attempts (
+CREATE TABLE IF NOT EXISTS vote_attempts (
   ip_hash      TEXT        NOT NULL,
   attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
--- INDEX untuk performa
+-- INDEX untuk performa (IF NOT EXISTS aman di Postgres 9.5+)
 -- ============================================================
-CREATE INDEX idx_vote_attempts_ip_time
+CREATE INDEX IF NOT EXISTS idx_vote_attempts_ip_time
   ON vote_attempts (ip_hash, attempted_at DESC);
 
-CREATE INDEX idx_votes_candidate
+CREATE INDEX IF NOT EXISTS idx_votes_candidate
   ON votes (candidate_id);
 
-CREATE INDEX idx_tokens_used
+CREATE INDEX IF NOT EXISTS idx_tokens_used
   ON tokens (used) WHERE used = FALSE;
 
 -- ============================================================
--- VIEW: results
--- Menampilkan jumlah suara per calon, diurutkan terbanyak dulu.
--- Calon tanpa suara tetap muncul dengan nilai 0.
+-- VIEW: results — suara per calon, sorted terbanyak
+-- CREATE OR REPLACE aman dijalankan ulang
 -- ============================================================
 CREATE OR REPLACE VIEW results AS
   SELECT
@@ -93,13 +88,7 @@ CREATE OR REPLACE VIEW results AS
 
 -- ============================================================
 -- FUNGSI: cast_vote (atomik, SECURITY DEFINER)
---
--- Proses voting dilakukan dalam satu transaksi:
--- 1. Cek status pemilihan = 'open'
--- 2. UPDATE token (SET used=true) hanya jika used=false
--- 3. Jika tidak ada baris terupdate → token invalid/sudah terpakai
--- 4. INSERT vote (hanya candidate_id, tanpa token, tanpa timestamp)
--- Jika INSERT gagal, transaksi rollback → token tidak hangus.
+-- CREATE OR REPLACE aman dijalankan ulang
 -- ============================================================
 CREATE OR REPLACE FUNCTION cast_vote(p_token TEXT, p_candidate_id UUID)
 RETURNS JSONB
@@ -111,7 +100,6 @@ DECLARE
   v_status  TEXT;
   v_updated INT;
 BEGIN
-  -- Langkah 1: Cek status pemilihan
   SELECT status INTO v_status
   FROM election_settings
   WHERE id = 1;
@@ -120,48 +108,38 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'reason', 'not_open');
   END IF;
 
-  -- Langkah 2: Tandai token terpakai secara atomik
   UPDATE tokens
   SET used = TRUE
   WHERE code = p_token AND used = FALSE;
 
   GET DIAGNOSTICS v_updated = ROW_COUNT;
 
-  -- Langkah 3: Tolak jika token tidak valid atau sudah terpakai
   IF v_updated = 0 THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'invalid_token');
   END IF;
 
-  -- Langkah 4: Rekam suara (TANPA token, TANPA timestamp)
   INSERT INTO votes (id, candidate_id)
   VALUES (gen_random_uuid(), p_candidate_id);
 
   RETURN jsonb_build_object('ok', true);
 
 EXCEPTION WHEN OTHERS THEN
-  -- Error di langkah 4 akan rollback seluruh transaksi,
-  -- sehingga UPDATE token pada langkah 2 ikut dibatalkan.
   RAISE;
 END;
 $$;
 
--- Keamanan: Cabut hak EXECUTE dari anon dan authenticated.
--- Fungsi hanya boleh dipanggil oleh service_role melalui API server.
+-- Cabut hak EXECUTE dari anon/authenticated
 REVOKE EXECUTE ON FUNCTION cast_vote(TEXT, UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION cast_vote(TEXT, UUID) FROM anon;
 REVOKE EXECUTE ON FUNCTION cast_vote(TEXT, UUID) FROM authenticated;
 
 -- ============================================================
 -- ROW LEVEL SECURITY
--- RLS diaktifkan di SEMUA tabel. Tidak ada policy untuk
--- anon atau authenticated. Semua akses hanya lewat
--- SUPABASE_SERVICE_ROLE_KEY dari server-side API routes.
+-- Aktifkan di semua tabel — tidak ada policy untuk anon.
+-- Semua akses hanya lewat service_role dari server-side.
 -- ============================================================
-ALTER TABLE candidates       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tokens           ENABLE ROW LEVEL SECURITY;
-ALTER TABLE votes            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE candidates        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tokens            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE votes             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE election_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE vote_attempts    ENABLE ROW LEVEL SECURITY;
-
--- Tidak ada CREATE POLICY untuk anon/authenticated di sini.
--- Akses hanya melalui service_role yang bypass RLS.
+ALTER TABLE vote_attempts     ENABLE ROW LEVEL SECURITY;
