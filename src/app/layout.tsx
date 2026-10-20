@@ -5,7 +5,12 @@ export const metadata: Metadata = {
   title: 'E-Voting Bakal Calon Ketua RT 01 / RW 05',
   description:
     'Sistem pemungutan suara elektronik untuk pemilihan Bakal Calon Ketua RT 01 / RW 05 dengan token sekali pakai.',
-  robots: 'noindex, nofollow', // Tidak diindeks search engine
+  robots: 'noindex, nofollow',
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/icon.png',
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({
