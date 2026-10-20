@@ -99,8 +99,8 @@ export default function HomePage() {
           </h1>
           <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: '2rem' }}>
             {electionStatus === 'draft'
-              ? 'Pemilihan Ketua RT belum dimulai. Harap menunggu informasi lebih lanjut dari panitia.'
-              : 'Periode pemilihan Ketua RT telah ditutup. Terima kasih atas partisipasi Anda.'}
+              ? 'Pemilihan Bakal Calon Ketua RT 01/RW 05 belum dimulai. Harap menunggu informasi lebih lanjut dari panitia.'
+              : 'Periode pemilihan Bakal Calon Ketua RT 01/RW 05 telah ditutup. Terima kasih atas partisipasi Anda.'}
           </p>
           {electionStatus === 'closed' && (
             <a href="/hasil" className="btn-secondary" style={{ display: 'inline-flex' }}>
@@ -152,7 +152,7 @@ export default function HomePage() {
             }}
           >
             E-Voting{' '}
-            <span className="gradient-text">Ketua RT</span>
+            <span className="gradient-text">Bakal Calon Ketua RT 01/RW 05</span>
           </h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>
             Masukkan token yang Anda terima untuk memulai pemilihan

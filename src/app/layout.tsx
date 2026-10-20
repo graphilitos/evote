@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'E-Voting Pemilihan Ketua RT',
+  title: 'E-Voting Bakal Calon Ketua RT 01 / RW 05',
   description:
-    'Sistem pemungutan suara elektronik untuk pemilihan Ketua RT dengan token sekali pakai.',
+    'Sistem pemungutan suara elektronik untuk pemilihan Bakal Calon Ketua RT 01 / RW 05 dengan token sekali pakai.',
   robots: 'noindex, nofollow', // Tidak diindeks search engine
 };
 

@@ -57,7 +57,7 @@ export default function SuksesPage() {
             marginBottom: '2rem',
           }}
         >
-          Terima kasih telah berpartisipasi dalam pemilihan Ketua RT. Suara Anda
+          Terima kasih telah berpartisipasi dalam pemilihan Bakal Calon Ketua RT 01/RW 05. Suara Anda
           telah berhasil kami catat dan dijaga kerahasiaannya.
         </p>
 

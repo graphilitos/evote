@@ -265,7 +265,7 @@ export default function AdminTokenPage() {
           <div ref={printRef} className="print-token-grid">
             {generatedTokens.map((t, i) => (
               <div key={t} className="print-token-card">
-                <p className="print-token-label">E-Voting Ketua RT</p>
+                <p className="print-token-label">E-Voting Bakal Calon Ketua RT 01/RW 05</p>
                 <p className="print-token-label" style={{ fontSize: '9px' }}>
                   Token Pemilihan
                 </p>

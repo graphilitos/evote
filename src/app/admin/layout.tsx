@@ -12,7 +12,7 @@ import { getAdminSessionFromCookies } from '@/lib/session';
 import AdminSidebar from './AdminSidebar';
 
 export const metadata = {
-  title: 'Admin — E-Voting Ketua RT',
+  title: 'Admin — E-Voting Bakal Calon Ketua RT 01 / RW 05',
 };
 
 export const instant = false;
@@ -23,7 +23,7 @@ async function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       {session && <AdminSidebar />}
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div className="admin-main-content" style={{ flex: 1, overflow: 'auto' }}>
         {children}
       </div>
     </div>

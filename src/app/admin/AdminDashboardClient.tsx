@@ -137,7 +137,7 @@ export default function AdminDashboardClient({
         Dashboard Admin
       </h1>
       <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem', fontSize: '0.95rem' }}>
-        E-Voting Pemilihan Ketua RT
+        E-Voting Bakal Calon Ketua RT 01 / RW 05
       </p>
 
       {msg && (

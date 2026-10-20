@@ -142,12 +142,9 @@ export default function PilihPage() {
               </p>
             </div>
 
-            {/* Kartu calon terpilih */}
-            <div style={{ background: 'rgba(79,70,229,0.1)', border: '2px solid rgba(79,70,229,0.4)', borderRadius: 'var(--radius-md)', padding: '1.25rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', margin: '0 auto 0.75rem', boxShadow: '0 4px 20px rgba(79,70,229,0.4)' }}>
-                👤
-              </div>
-              <p style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: '0.25rem' }}>{selectedCandidate.name}</p>
+            {/* Kartu calon terpilih di modal — tanpa avatar, hanya teks */}
+            <div style={{ background: 'rgba(79,70,229,0.06)', border: '2px solid rgba(79,70,229,0.25)', borderRadius: 'var(--radius-md)', padding: '1.25rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+              <p style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: '0.25rem', color: 'var(--color-text)' }}>{selectedCandidate.name}</p>
               {selectedCandidate.age && (
                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>{selectedCandidate.age} tahun</p>
               )}
@@ -157,7 +154,7 @@ export default function PilihPage() {
             </div>
 
             {error && (
-              <div role="alert" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', color: '#fca5a5', fontSize: '0.875rem', marginBottom: '1rem', textAlign: 'center' }}>
+              <div role="alert" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', color: '#dc2626', fontSize: '0.875rem', marginBottom: '1rem', textAlign: 'center' }}>
                 {error}
               </div>
             )}
@@ -182,7 +179,7 @@ export default function PilihPage() {
           {/* ─── Header ─── */}
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.35rem' }}>
-              Pilih <span className="gradient-text">Ketua RT</span>
+              Pilih <span className="gradient-text">Bakal Calon Ketua RT 01/RW 05</span>
             </h1>
             <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
               {candidates.length} calon terdaftar · Pilih satu, lalu konfirmasi
@@ -195,16 +192,17 @@ export default function PilihPage() {
               position: 'sticky',
               top: '0.75rem',
               zIndex: 10,
-              background: 'rgba(15,15,26,0.85)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(255,255,255,0.9)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid var(--color-border)',
               borderRadius: 'var(--radius-md)',
               padding: '0.875rem 1rem',
               marginBottom: '1.5rem',
               display: 'flex',
               flexDirection: 'column',
               gap: '0.75rem',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
             }}
           >
             {/* Search */}
@@ -246,9 +244,9 @@ export default function PilihPage() {
                     fontWeight: 600,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    borderColor: ageFilter === i ? 'var(--color-primary-light)' : 'rgba(255,255,255,0.12)',
-                    background: ageFilter === i ? 'rgba(129,140,248,0.2)' : 'transparent',
-                    color: ageFilter === i ? 'var(--color-primary-light)' : 'var(--color-text-muted)',
+                    borderColor: ageFilter === i ? 'var(--color-primary)' : 'var(--color-border)',
+                    background: ageFilter === i ? 'rgba(79,70,229,0.1)' : 'transparent',
+                    color: ageFilter === i ? 'var(--color-primary)' : 'var(--color-text-muted)',
                   }}
                   aria-pressed={ageFilter === i}
                 >
@@ -299,51 +297,27 @@ export default function PilihPage() {
                     style={{ textAlign: 'left', width: '100%', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
                     aria-pressed={isSelected}
                   >
-                    <div style={{ padding: '1.125rem' }}>
-                      {/* Avatar inisial */}
-                      <div style={{
-                        width: '48px', height: '48px', borderRadius: '12px',
-                        background: isSelected
-                          ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
-                          : 'rgba(129,140,248,0.12)',
-                        border: `1px solid ${isSelected ? 'rgba(129,140,248,0.6)' : 'rgba(129,140,248,0.2)'}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '1.15rem', fontWeight: 700, color: '#fff',
-                        marginBottom: '0.75rem',
-                        transition: 'all 0.2s ease',
-                        boxShadow: isSelected ? '0 4px 16px rgba(79,70,229,0.5)' : 'none',
-                        flexShrink: 0,
-                      }}>
-                        {c.name.charAt(0).toUpperCase()}
-                      </div>
-
-                      {/* Nama */}
+                    <div style={{ padding: '1rem' }}>
+                      {/* Nama — tanpa avatar */}
                       <p style={{
                         fontWeight: 700,
-                        fontSize: '0.95rem',
+                        fontSize: '0.925rem',
                         lineHeight: 1.3,
-                        marginBottom: '0.35rem',
-                        color: isSelected ? '#fff' : 'var(--color-text)',
+                        marginBottom: '0.3rem',
+                        color: 'var(--color-text)',
                       }}>
                         {c.name}
                       </p>
 
                       {/* Usia + keterangan */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                         {c.age != null && (
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                            fontSize: '0.78rem', color: isSelected ? 'rgba(255,255,255,0.7)' : 'var(--color-text-muted)',
-                          }}>
-                            🎂 {c.age} tahun
+                          <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                            {c.age} tahun
                           </span>
                         )}
                         {c.description && (
-                          <span style={{
-                            fontSize: '0.78rem',
-                            color: isSelected ? 'rgba(255,255,255,0.6)' : 'var(--color-text-muted)',
-                            lineHeight: 1.4,
-                          }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
                             {c.description}
                           </span>
                         )}
@@ -351,17 +325,8 @@ export default function PilihPage() {
 
                       {/* Checkmark selected */}
                       {isSelected && (
-                        <div style={{
-                          marginTop: '0.75rem',
-                          display: 'flex', alignItems: 'center', gap: '0.35rem',
-                          fontSize: '0.78rem', fontWeight: 700, color: '#a5b4fc',
-                        }}>
-                          <span style={{
-                            width: '18px', height: '18px', borderRadius: '50%',
-                            background: 'rgba(129,140,248,0.3)', border: '2px solid #818cf8',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '0.6rem',
-                          }}>✓</span>
+                        <div style={{ marginTop: '0.625rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                          <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'rgba(79,70,229,0.1)', border: '2px solid var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem' }}>✓</span>
                           Terpilih
                         </div>
                       )}
@@ -379,16 +344,17 @@ export default function PilihPage() {
         style={{
           position: 'fixed',
           bottom: 0, left: 0, right: 0,
-          padding: '1rem 1.5rem',
-          background: 'rgba(15,15,26,0.92)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderTop: '1px solid rgba(255,255,255,0.08)',
+          padding: '0.875rem 1.5rem',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderTop: '1px solid var(--color-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '1rem',
           zIndex: 20,
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
         }}
       >
         <div style={{ minWidth: 0 }}>
