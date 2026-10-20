@@ -24,31 +24,38 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Hapus dalam urutan yang aman (foreign key: votes → tokens → candidates)
-  const steps: Array<{ name: string; op: () => Promise<{ error: { message: string } | null }> }> = [
-    { name: 'votes',          op: () => supabase.from('votes').delete().neq('id', '00000000-0000-0000-0000-000000000000') },
-    { name: 'vote_attempts',  op: () => supabase.from('vote_attempts').delete().neq('ip_hash', '') },
-    { name: 'tokens',         op: () => supabase.from('tokens').delete().neq('code', '') },
-    { name: 'candidates',     op: () => supabase.from('candidates').delete().neq('id', '00000000-0000-0000-0000-000000000000') },
-    {
-      name: 'election_settings',
-      op: () =>
-        supabase
-          .from('election_settings')
-          .update({ status: 'draft', show_results_public: false })
-          .eq('id', 1),
-    },
-  ];
+  // Hapus dalam urutan aman (foreign key: votes → tokens → candidates)
+  // neq dengan nilai dummy memastikan semua baris terhapus
 
-  for (const step of steps) {
-    const { error } = await step.op();
-    if (error) {
-      return NextResponse.json(
-        { error: `Gagal menghapus ${step.name}: ${error.message}` },
-        { status: 500 }
-      );
-    }
-  }
+  const { error: e1 } = await supabase
+    .from('votes')
+    .delete()
+    .neq('id', '00000000-0000-0000-0000-000000000000');
+  if (e1) return NextResponse.json({ error: 'Gagal hapus votes: ' + e1.message }, { status: 500 });
+
+  const { error: e2 } = await supabase
+    .from('vote_attempts')
+    .delete()
+    .neq('ip_hash', '');
+  if (e2) return NextResponse.json({ error: 'Gagal hapus vote_attempts: ' + e2.message }, { status: 500 });
+
+  const { error: e3 } = await supabase
+    .from('tokens')
+    .delete()
+    .neq('code', '');
+  if (e3) return NextResponse.json({ error: 'Gagal hapus tokens: ' + e3.message }, { status: 500 });
+
+  const { error: e4 } = await supabase
+    .from('candidates')
+    .delete()
+    .neq('id', '00000000-0000-0000-0000-000000000000');
+  if (e4) return NextResponse.json({ error: 'Gagal hapus candidates: ' + e4.message }, { status: 500 });
+
+  const { error: e5 } = await supabase
+    .from('election_settings')
+    .update({ status: 'draft', show_results_public: false })
+    .eq('id', 1);
+  if (e5) return NextResponse.json({ error: 'Gagal reset settings: ' + e5.message }, { status: 500 });
 
   return NextResponse.json({ success: true, message: 'Semua data berhasil direset.' });
 }
