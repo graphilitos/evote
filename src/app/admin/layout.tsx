@@ -1,14 +1,13 @@
 /**
- * Layout admin — cek sesi server-side.
+ * Layout admin — tampilkan sidebar jika sesi valid.
  *
- * Jika tidak ada sesi → redirect ke /admin/login.
- * Sidebar navigasi ditampilkan untuk semua route admin yang terautentikasi.
- *
- * `instant = false` agar Next.js 16 tidak memvalidasi route ini sebagai
- * instant navigation (admin routes sengaja blocking karena baca cookie).
+ * CATATAN: Redirect ke /admin/login TIDAK dilakukan di sini karena
+ * layout tidak bisa membaca pathname secara reliabel di Server Component.
+ * Setiap halaman protected (/admin, /admin/calon, dll) sudah menangani
+ * redirect sendiri via getAdminSessionFromCookies().
+ * Halaman /admin/login adalah public dan tidak butuh sesi.
  */
 import { Suspense } from 'react';
-import { redirect } from 'next/navigation';
 import { getAdminSessionFromCookies } from '@/lib/session';
 import AdminSidebar from './AdminSidebar';
 
@@ -18,23 +17,8 @@ export const metadata = {
 
 export const instant = false;
 
-// Halaman login tidak butuh sesi — daftar path yang dikecualikan dari guard
-const PUBLIC_ADMIN_PATHS = ['/admin/login'];
-
-async function AdminLayoutInner({
-  children,
-  pathname,
-}: {
-  children: React.ReactNode;
-  pathname?: string;
-}) {
+async function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const session = await getAdminSessionFromCookies();
-
-  // Jika bukan halaman publik dan tidak ada sesi → redirect ke login
-  const isPublicPath = PUBLIC_ADMIN_PATHS.some((p) => pathname?.startsWith(p));
-  if (!session && !isPublicPath) {
-    redirect('/admin/login');
-  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -71,7 +55,6 @@ export default function AdminLayout({
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
             }}
-            aria-label="Memuat..."
           />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
