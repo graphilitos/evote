@@ -33,7 +33,7 @@ export async function PUT(
   }
 
   const { id } = await params;
-  let body: { name?: string; description?: string };
+  let body: { name?: string; description?: string; age?: number };
   try {
     body = await request.json();
   } catch {
@@ -45,9 +45,14 @@ export async function PUT(
     return NextResponse.json({ error: 'Nama calon wajib diisi.' }, { status: 400 });
   }
 
+  const age = body.age != null ? Number(body.age) : null;
+  if (age !== null && (isNaN(age) || age < 17 || age > 100)) {
+    return NextResponse.json({ error: 'Usia harus antara 17–100 tahun.' }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from('candidates')
-    .update({ name, description: body.description?.trim() ?? null })
+    .update({ name, description: body.description?.trim() ?? null, age })
     .eq('id', id)
     .select()
     .single();

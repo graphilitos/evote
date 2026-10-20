@@ -1,368 +1,432 @@
 'use client';
 
 /**
- * Halaman pilih calon.
- * Token diambil dari sessionStorage (dikirim saat cast vote).
- * Jika tidak ada token → redirect ke halaman utama.
- * Dialog konfirmasi ditampilkan sebelum suara dikirim.
+ * Halaman pemilihan calon (/pilih).
+ * Fitur: search nama, filter rentang usia, grid responsif, dialog konfirmasi.
+ * Dirancang untuk menangani 50–100 calon dengan nyaman.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Candidate {
   id: string;
   name: string;
+  age: number | null;
   description: string | null;
 }
 
+const AGE_FILTERS = [
+  { label: 'Semua Usia', min: 0, max: 999 },
+  { label: '25–34 thn', min: 25, max: 34 },
+  { label: '35–44 thn', min: 35, max: 44 },
+  { label: '45–60 thn', min: 45, max: 60 },
+];
+
 export default function PilihPage() {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [selected, setSelected] = useState<Candidate | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [selected, setSelected] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [ageFilter, setAgeFilter] = useState(0);
+  const [confirm, setConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Ambil token dari sessionStorage
-    const savedToken = sessionStorage.getItem('evote_token');
-    if (!savedToken) {
+    const token = sessionStorage.getItem('evote_token');
+    if (!token) {
       router.replace('/');
       return;
     }
-    setToken(savedToken);
-    fetchCandidates();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  async function fetchCandidates() {
-    try {
-      // Ambil calon dari API publik sementara (pakai results view yang tidak ada admin guard)
-      // Kita buat endpoint khusus voter
-      const res = await fetch('/api/vote/candidates');
-      if (!res.ok) throw new Error('Gagal memuat daftar calon.');
-      const data = await res.json();
-      setCandidates(data);
-    } catch {
-      setError('Gagal memuat daftar calon. Muat ulang halaman.');
-    } finally {
-      setLoading(false);
-    }
-  }
+    fetch('/api/vote/candidates')
+      .then(async (res) => {
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          setError(d.error ?? 'Gagal memuat daftar calon.');
+        } else {
+          const data = await res.json();
+          // Acak urutan calon agar tidak ada bias posisi
+          setCandidates(data.sort(() => Math.random() - 0.5));
+        }
+      })
+      .catch(() => setError('Kesalahan jaringan. Coba muat ulang halaman.'))
+      .finally(() => setLoading(false));
+  }, [router]);
 
-  function handleSelectCandidate(candidate: Candidate) {
-    setSelected(candidate);
-    setShowConfirm(true);
-  }
+  const af = AGE_FILTERS[ageFilter];
+  const filtered = useMemo(() => {
+    return candidates.filter((c) => {
+      const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
+      const matchAge =
+        ageFilter === 0 ||
+        (c.age != null && c.age >= af.min && c.age <= af.max);
+      return matchSearch && matchAge;
+    });
+  }, [candidates, search, ageFilter, af.min, af.max]);
 
-  async function handleConfirmVote() {
-    if (!selected || !token) return;
+  const selectedCandidate = candidates.find((c) => c.id === selected);
+
+  async function handleVote() {
+    if (!selected) return;
+    const token = sessionStorage.getItem('evote_token');
+    if (!token) { router.replace('/'); return; }
+
     setSubmitting(true);
 
     try {
       const res = await fetch('/api/vote/cast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, candidateId: selected.id }),
+        body: JSON.stringify({ token, candidateId: selected }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setShowConfirm(false);
+        setError(data.error ?? 'Gagal mengirim suara. Coba lagi.');
+        setConfirm(false);
         setSubmitting(false);
-        setError(data.error ?? 'Terjadi kesalahan. Silakan coba lagi.');
         return;
       }
 
-      if (data.success) {
-        // Hapus token dari sessionStorage — tidak perlu lagi setelah voting
-        sessionStorage.removeItem('evote_token');
-        router.replace('/sukses');
-      }
+      sessionStorage.removeItem('evote_token');
+      router.replace('/sukses');
     } catch {
-      setShowConfirm(false);
+      setError('Kesalahan jaringan. Coba lagi.');
+      setConfirm(false);
       setSubmitting(false);
-      setError('Terjadi kesalahan jaringan. Coba lagi.');
     }
   }
 
+  // ─── Loading ───
   if (loading) {
     return (
-      <main
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+      <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              border: '3px solid rgba(255,255,255,0.1)',
-              borderTopColor: 'var(--color-primary-light)',
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-              margin: '0 auto 1rem',
-            }}
-          />
+          <div style={{ width: '48px', height: '48px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--color-primary-light)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem' }} />
           <p style={{ color: 'var(--color-text-muted)' }}>Memuat daftar calon...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </main>
+    );
+  }
+
+  // ─── Error ───
+  if (error && candidates.length === 0) {
+    return (
+      <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', textAlign: 'center' }}>
+        <div style={{ maxWidth: '380px' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>Tidak dapat memuat calon</h1>
+          <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>{error}</p>
+          <button className="btn-secondary" onClick={() => window.location.reload()}>Muat Ulang</button>
+        </div>
       </main>
     );
   }
 
   return (
-    <main
-      style={{
-        minHeight: '100vh',
-        padding: '1.5rem',
-        paddingBottom: '4rem',
-        maxWidth: '640px',
-        margin: '0 auto',
-      }}
-    >
-      {/* Header */}
-      <div style={{ paddingTop: '2rem', marginBottom: '2rem' }}>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-          Langkah 2 dari 2
-        </p>
-        <h1
-          style={{ fontSize: '1.6rem', fontWeight: 800, lineHeight: 1.2, marginBottom: '0.5rem' }}
-        >
-          Pilih <span className="gradient-text">Calon Ketua RT</span>
-        </h1>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>
-          Ketuk kartu calon pilihan Anda. Pilihan tidak bisa diubah setelah dikonfirmasi.
-        </p>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div
-          role="alert"
-          style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '0.875rem 1rem',
-            color: '#fca5a5',
-            fontSize: '0.875rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {/* Daftar calon */}
-      {candidates.length === 0 ? (
-        <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <p style={{ color: 'var(--color-text-muted)' }}>
-            Belum ada calon yang terdaftar.
-          </p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {candidates.map((candidate, index) => (
-            <button
-              key={candidate.id}
-              id={`candidate-${candidate.id}`}
-              className={`candidate-card${selected?.id === candidate.id ? ' selected' : ''}`}
-              onClick={() => handleSelectCandidate(candidate)}
-              disabled={submitting}
-              style={{
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                border: 'none',
-                background: 'none',
-                font: 'inherit',
-              }}
-              aria-pressed={selected?.id === candidate.id}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  position: 'relative',
-                  zIndex: 1,
-                }}
-              >
-                {/* Nomor urut */}
-                <div
-                  style={{
-                    flexShrink: 0,
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '14px',
-                    background:
-                      selected?.id === candidate.id
-                        ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
-                        : 'rgba(255,255,255,0.08)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.5rem',
-                    fontWeight: 800,
-                    color: selected?.id === candidate.id ? '#fff' : 'var(--color-text-muted)',
-                    transition: 'all 0.25s ease',
-                  }}
-                >
-                  {index + 1}
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: '1.15rem',
-                      fontWeight: 700,
-                      marginBottom: '0.25rem',
-                      color: 'var(--color-text)',
-                    }}
-                  >
-                    {candidate.name}
-                  </div>
-                  {candidate.description && (
-                    <div
-                      style={{
-                        fontSize: '0.875rem',
-                        color: 'var(--color-text-muted)',
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {candidate.description}
-                    </div>
-                  )}
-                </div>
-
-                {/* Checkmark jika terpilih */}
-                {selected?.id === candidate.id && (
-                  <div
-                    style={{
-                      flexShrink: 0,
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      background: 'var(--color-primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '1rem',
-                      color: '#fff',
-                      animation: 'pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    }}
-                    aria-hidden="true"
-                  >
-                    ✓
-                  </div>
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Dialog konfirmasi */}
-      {showConfirm && selected && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <>
+      {/* ─── Dialog Konfirmasi ─── */}
+      {confirm && selectedCandidate && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setConfirm(false); }}>
           <div className="modal-panel">
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>🗳️</div>
-              <h2
-                id="confirm-title"
-                style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}
-              >
-                Konfirmasi Pilihan
-              </h2>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                Anda akan memilih:
-              </p>
-              <div
-                style={{
-                  margin: '1rem 0',
-                  padding: '0.875rem 1.25rem',
-                  background: 'rgba(79, 70, 229, 0.15)',
-                  border: '1px solid rgba(129, 140, 248, 0.3)',
-                  borderRadius: 'var(--radius-md)',
-                }}
-              >
-                <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>{selected.name}</p>
-              </div>
-              <p
-                style={{
-                  color: '#fbbf24',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid rgba(245, 158, 11, 0.2)',
-                }}
-              >
-                ⚠️ Pilihan tidak bisa diubah setelah dikonfirmasi
+              <h2 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>Konfirmasi Pilihan</h2>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                Suara Anda bersifat final dan tidak dapat diubah.
               </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <button
-                id="btn-konfirmasi"
-                className="btn-primary"
-                onClick={handleConfirmVote}
-                disabled={submitting}
-                style={{ width: '100%' }}
-              >
-                {submitting ? (
-                  <>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        width: '16px',
-                        height: '16px',
-                        border: '2px solid rgba(255,255,255,0.3)',
-                        borderTopColor: '#fff',
-                        borderRadius: '50%',
-                        animation: 'spin 0.7s linear infinite',
-                      }}
-                      aria-hidden="true"
-                    />
-                    Mengirim suara...
-                  </>
-                ) : (
-                  'Ya, Konfirmasi Pilihan Saya'
-                )}
+            {/* Kartu calon terpilih */}
+            <div style={{ background: 'rgba(79,70,229,0.1)', border: '2px solid rgba(79,70,229,0.4)', borderRadius: 'var(--radius-md)', padding: '1.25rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', margin: '0 auto 0.75rem', boxShadow: '0 4px 20px rgba(79,70,229,0.4)' }}>
+                👤
+              </div>
+              <p style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: '0.25rem' }}>{selectedCandidate.name}</p>
+              {selectedCandidate.age && (
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>{selectedCandidate.age} tahun</p>
+              )}
+              {selectedCandidate.description && (
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' }}>{selectedCandidate.description}</p>
+              )}
+            </div>
+
+            {error && (
+              <div role="alert" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', color: '#fca5a5', fontSize: '0.875rem', marginBottom: '1rem', textAlign: 'center' }}>
+                {error}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn-secondary" onClick={() => { setConfirm(false); setError(''); }} style={{ flex: 1 }} disabled={submitting}>
+                Batal
               </button>
-              <button
-                id="btn-batal"
-                className="btn-secondary"
-                onClick={() => {
-                  setShowConfirm(false);
-                  setSelected(null);
-                }}
-                disabled={submitting}
-                style={{ width: '100%' }}
-              >
-                Batalkan
+              <button id="btn-kirim-suara" className="btn-primary" onClick={handleVote} style={{ flex: 2 }} disabled={submitting}>
+                {submitting
+                  ? <><span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Mengirim...</>
+                  : '✓ Ya, Kirim Suara Saya'}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      <main style={{ minHeight: '100vh', padding: '1.5rem 1rem 4rem' }}>
+        <div style={{ maxWidth: '960px', margin: '0 auto' }}>
+
+          {/* ─── Header ─── */}
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.35rem' }}>
+              Pilih <span className="gradient-text">Ketua RT</span>
+            </h1>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+              {candidates.length} calon terdaftar · Pilih satu, lalu konfirmasi
+            </p>
+          </div>
+
+          {/* ─── Search + Filter ─── */}
+          <div
+            style={{
+              position: 'sticky',
+              top: '0.75rem',
+              zIndex: 10,
+              background: 'rgba(15,15,26,0.85)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.875rem 1rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
+          >
+            {/* Search */}
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', fontSize: '1rem', pointerEvents: 'none' }}>🔍</span>
+              <input
+                ref={searchRef}
+                type="text"
+                className="input-field"
+                placeholder="Cari nama calon..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ paddingLeft: '2.5rem', fontSize: '0.95rem' }}
+                aria-label="Cari calon"
+              />
+              {search && (
+                <button
+                  onClick={() => { setSearch(''); searchRef.current?.focus(); }}
+                  style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '1rem', padding: '0.25rem' }}
+                  aria-label="Hapus pencarian"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Filter usia + counter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginRight: '0.25rem', flexShrink: 0 }}>Rentang usia:</span>
+              {AGE_FILTERS.map((f, i) => (
+                <button
+                  key={f.label}
+                  onClick={() => setAgeFilter(i)}
+                  style={{
+                    padding: '0.3rem 0.75rem',
+                    borderRadius: '999px',
+                    border: '1px solid',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    borderColor: ageFilter === i ? 'var(--color-primary-light)' : 'rgba(255,255,255,0.12)',
+                    background: ageFilter === i ? 'rgba(129,140,248,0.2)' : 'transparent',
+                    color: ageFilter === i ? 'var(--color-primary-light)' : 'var(--color-text-muted)',
+                  }}
+                  aria-pressed={ageFilter === i}
+                >
+                  {f.label}
+                </button>
+              ))}
+              <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                {filtered.length} dari {candidates.length} calon
+              </span>
+            </div>
+          </div>
+
+          {/* ─── Error (non-fatal) ─── */}
+          {error && candidates.length > 0 && (
+            <div role="alert" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-sm)', padding: '0.75rem 1rem', color: '#fca5a5', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+              {error}
+            </div>
+          )}
+
+          {/* ─── Grid Calon ─── */}
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--color-text-muted)' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🔍</div>
+              <p>Tidak ada calon yang cocok dengan pencarian atau filter.</p>
+              <button
+                onClick={() => { setSearch(''); setAgeFilter(0); }}
+                style={{ marginTop: '1rem', background: 'none', border: 'none', color: 'var(--color-primary-light)', cursor: 'pointer', fontSize: '0.9rem', textDecoration: 'underline' }}
+              >
+                Reset filter
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: '0.875rem',
+              }}
+            >
+              {filtered.map((c) => {
+                const isSelected = selected === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    id={`candidate-${c.id}`}
+                    onClick={() => setSelected(c.id)}
+                    className={`candidate-card${isSelected ? ' selected' : ''}`}
+                    style={{ textAlign: 'left', width: '100%', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+                    aria-pressed={isSelected}
+                  >
+                    <div style={{ padding: '1.125rem' }}>
+                      {/* Avatar inisial */}
+                      <div style={{
+                        width: '48px', height: '48px', borderRadius: '12px',
+                        background: isSelected
+                          ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
+                          : 'rgba(129,140,248,0.12)',
+                        border: `1px solid ${isSelected ? 'rgba(129,140,248,0.6)' : 'rgba(129,140,248,0.2)'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '1.15rem', fontWeight: 700, color: '#fff',
+                        marginBottom: '0.75rem',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isSelected ? '0 4px 16px rgba(79,70,229,0.5)' : 'none',
+                        flexShrink: 0,
+                      }}>
+                        {c.name.charAt(0).toUpperCase()}
+                      </div>
+
+                      {/* Nama */}
+                      <p style={{
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        lineHeight: 1.3,
+                        marginBottom: '0.35rem',
+                        color: isSelected ? '#fff' : 'var(--color-text)',
+                      }}>
+                        {c.name}
+                      </p>
+
+                      {/* Usia + keterangan */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        {c.age != null && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                            fontSize: '0.78rem', color: isSelected ? 'rgba(255,255,255,0.7)' : 'var(--color-text-muted)',
+                          }}>
+                            🎂 {c.age} tahun
+                          </span>
+                        )}
+                        {c.description && (
+                          <span style={{
+                            fontSize: '0.78rem',
+                            color: isSelected ? 'rgba(255,255,255,0.6)' : 'var(--color-text-muted)',
+                            lineHeight: 1.4,
+                          }}>
+                            {c.description}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Checkmark selected */}
+                      {isSelected && (
+                        <div style={{
+                          marginTop: '0.75rem',
+                          display: 'flex', alignItems: 'center', gap: '0.35rem',
+                          fontSize: '0.78rem', fontWeight: 700, color: '#a5b4fc',
+                        }}>
+                          <span style={{
+                            width: '18px', height: '18px', borderRadius: '50%',
+                            background: 'rgba(129,140,248,0.3)', border: '2px solid #818cf8',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.6rem',
+                          }}>✓</span>
+                          Terpilih
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ─── Floating tombol konfirmasi ─── */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0, left: 0, right: 0,
+          padding: '1rem 1.5rem',
+          background: 'rgba(15,15,26,0.92)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          zIndex: 20,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          {selectedCandidate ? (
+            <>
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.1rem' }}>Pilihan Anda:</p>
+              <p style={{ fontWeight: 700, fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {selectedCandidate.name}
+                {selectedCandidate.age ? ` · ${selectedCandidate.age} thn` : ''}
+              </p>
+            </>
+          ) : (
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
+              Belum ada calon yang dipilih
+            </p>
+          )}
+        </div>
+        <button
+          id="btn-konfirmasi"
+          className="btn-primary"
+          disabled={!selected}
+          onClick={() => { setError(''); setConfirm(true); }}
+          style={{ flexShrink: 0, padding: '0.75rem 1.5rem' }}
+        >
+          Konfirmasi →
+        </button>
+      </div>
+
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pop {
-          from { transform: scale(0); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
+        .candidate-card {
+          transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1) !important;
+        }
+        .candidate-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 8px 32px rgba(79,70,229,0.2);
         }
       `}</style>
-    </main>
+    </>
   );
 }
