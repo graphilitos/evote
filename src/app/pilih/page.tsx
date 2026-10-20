@@ -192,17 +192,16 @@ export default function PilihPage() {
               position: 'sticky',
               top: '0.75rem',
               zIndex: 10,
-              background: 'rgba(255,255,255,0.9)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid var(--color-border)',
+              background: 'rgba(15,15,26,0.85)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.08)',
               borderRadius: 'var(--radius-md)',
               padding: '0.875rem 1rem',
               marginBottom: '1.5rem',
               display: 'flex',
               flexDirection: 'column',
               gap: '0.75rem',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
             }}
           >
             {/* Search */}
@@ -244,9 +243,9 @@ export default function PilihPage() {
                     fontWeight: 600,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    borderColor: ageFilter === i ? 'var(--color-primary)' : 'var(--color-border)',
-                    background: ageFilter === i ? 'rgba(79,70,229,0.1)' : 'transparent',
-                    color: ageFilter === i ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    borderColor: ageFilter === i ? 'var(--color-primary-light)' : 'rgba(255,255,255,0.12)',
+                    background: ageFilter === i ? 'rgba(129,140,248,0.2)' : 'transparent',
+                    color: ageFilter === i ? 'var(--color-primary-light)' : 'var(--color-text-muted)',
                   }}
                   aria-pressed={ageFilter === i}
                 >
@@ -344,17 +343,16 @@ export default function PilihPage() {
         style={{
           position: 'fixed',
           bottom: 0, left: 0, right: 0,
-          padding: '0.875rem 1.5rem',
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          borderTop: '1px solid var(--color-border)',
+          padding: '1rem 1.5rem',
+          background: 'rgba(15,15,26,0.92)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '1rem',
           zIndex: 20,
-          boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
         }}
       >
         <div style={{ minWidth: 0 }}>

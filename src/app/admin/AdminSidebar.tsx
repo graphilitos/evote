@@ -30,7 +30,7 @@ export default function AdminSidebar() {
         style={{
           width: '220px',
           flexShrink: 0,
-          background: '#fff',
+          background: 'rgba(255,255,255,0.03)',
           borderRight: '1px solid var(--color-border)',
           display: 'flex',
           flexDirection: 'column',
