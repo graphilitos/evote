@@ -1,13 +1,12 @@
--- ============================================================
--- Migration 002: Tambah kolom usia (age) ke tabel candidates
--- Aman dijalankan pada database yang sudah ada.
--- ============================================================
-
+-- Langkah 1: Tambah kolom usia ke tabel candidates
 ALTER TABLE candidates
   ADD COLUMN IF NOT EXISTS age INTEGER CHECK (age >= 17 AND age <= 100);
 
--- Update view results agar ikut sertakan kolom age
-CREATE OR REPLACE VIEW results AS
+-- Langkah 2: Hapus view lama lalu buat ulang dengan kolom age
+-- (CREATE OR REPLACE tidak bisa mengubah urutan kolom yang sudah ada)
+DROP VIEW IF EXISTS results;
+
+CREATE VIEW results AS
   SELECT
     c.id,
     c.name,
