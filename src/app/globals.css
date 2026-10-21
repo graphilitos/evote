@@ -179,6 +179,13 @@ body {
   text-transform: uppercase;
 }
 
+@media (max-width: 380px) {
+  .token-input {
+    font-size: 1.5rem;
+    letter-spacing: 0.2em;
+  }
+}
+
 /* ─── Badge ─── */
 .badge {
   display: inline-flex;
@@ -345,6 +352,59 @@ body {
 @media (min-width: 640px) {
   .modal-overlay {
     align-items: center;
+  }
+}
+
+/* ─── Modal kandidat voter (bottom-sheet di mobile) ─── */
+.candidates-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.2s ease;
+}
+
+@media (min-width: 600px) {
+  .candidates-modal-overlay {
+    align-items: center;
+    padding: 1rem;
+  }
+}
+
+.candidates-modal-panel {
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface, #1e1e2e);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+  animation: slideUp 0.25s ease;
+}
+
+@media (min-width: 600px) {
+  .candidates-modal-panel {
+    border-radius: 20px;
+    max-height: 80vh;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  }
+}
+
+/* ─── Voter page responsive ─── */
+@media (max-width: 480px) {
+  .voter-h1 {
+    font-size: 1.4rem !important;
+  }
+  .voter-card-padding {
+    padding: 1.5rem !important;
   }
 }
 
