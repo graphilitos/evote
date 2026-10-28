@@ -1,6 +1,7 @@
 /**
- * POST /api/admin/tokens — generate token massal
- * GET  /api/admin/tokens — ringkasan token (total, terpakai, belum)
+ * POST   /api/admin/tokens — generate token massal
+ * GET    /api/admin/tokens — ringkasan token (total, terpakai, belum)
+ * DELETE /api/admin/tokens — hapus SEMUA token (hanya token, data lain aman)
  *
  * KEAMANAN: Ringkasan tidak menampilkan token mana yang sudah dipakai
  * atau oleh siapa — hanya jumlah agregat.
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
-  const { data: totalData } = await supabase
+  const { count: totalCount } = await supabase
     .from('tokens')
     .select('*', { count: 'exact', head: true });
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
   const uniqueBatches = [...new Set((batches ?? []).map((b: { batch: string }) => b.batch))];
 
   return NextResponse.json({
-    total: totalData ?? 0,
+    total: totalCount ?? 0,
     used: usedCount ?? 0,
     unused: unusedCount ?? 0,
     batches: uniqueBatches,
@@ -83,4 +84,28 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * DELETE /api/admin/tokens
+ * Hapus SEMUA token dari database.
+ * Aman: hanya hapus tabel tokens, tidak menyentuh votes/candidates/settings.
+ */
+export async function DELETE(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
+  const { error } = await supabase
+    .from('tokens')
+    .delete()
+    .neq('code', '');
+
+  if (error) {
+    return NextResponse.json(
+      { error: 'Gagal hapus token: ' + error.message },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ success: true, message: 'Semua token berhasil dihapus.' });
 }

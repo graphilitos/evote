@@ -22,6 +22,7 @@ export default function AdminTokenPage() {
   const [generatedTokens, setGeneratedTokens] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [msg, setMsg] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -34,6 +35,19 @@ export default function AdminTokenPage() {
     if (res.status === 401) { router.replace('/admin/login'); return; }
     if (res.ok) setSummary(await res.json());
     setLoading(false);
+  }
+
+  async function handleResetTokens() {
+    if (!confirm('Hapus SEMUA token dari database? Tindakan ini tidak bisa dibatalkan.')) return;
+    setResetting(true);
+    setMsg('');
+    const res = await fetch('/api/admin/tokens', { method: 'DELETE' });
+    const data = await res.json();
+    setResetting(false);
+    if (!res.ok) { setMsg('❌ Gagal reset token: ' + data.error); return; }
+    setGeneratedTokens([]);
+    setMsg('✅ Semua token berhasil dihapus.');
+    await fetchSummary();
   }
 
   async function handleGenerate(e: React.FormEvent) {
@@ -55,7 +69,7 @@ export default function AdminTokenPage() {
     if (!res.ok) { setMsg('❌ ' + data.error); return; }
     setGeneratedTokens(data.tokens);
     setMsg(`✅ ${data.count} token berhasil dibuat untuk batch "${form.batch}".`);
-    fetchSummary();
+    await fetchSummary();
   }
 
   function downloadCsv() {
@@ -98,24 +112,44 @@ export default function AdminTokenPage() {
 
       {/* Ringkasan */}
       {summary && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '1rem',
-            marginBottom: '2rem',
-          }}
-        >
-          {[
-            { label: 'Total Token', value: summary.total, color: '#818cf8' },
-            { label: 'Terpakai', value: summary.used, color: '#34d399' },
-            { label: 'Belum Dipakai', value: summary.unused, color: '#fbbf24' },
-          ].map((s) => (
-            <div key={s.label} className="glass-card" style={{ padding: '1.25rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: s.color }}>{s.value}</div>
-              <div style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>{s.label}</div>
+        <div style={{ marginBottom: '2rem' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '1rem',
+              marginBottom: '0.75rem',
+            }}
+          >
+            {[
+              { label: 'Total Token', value: summary.total, color: '#818cf8' },
+              { label: 'Terpakai', value: summary.used, color: '#34d399' },
+              { label: 'Belum Dipakai', value: summary.unused, color: '#fbbf24' },
+            ].map((s) => (
+              <div key={s.label} className="glass-card" style={{ padding: '1.25rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 800, color: s.color }}>{s.value}</div>
+                <div style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+          {summary.total > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                id="btn-reset-tokens"
+                className="btn-secondary"
+                onClick={handleResetTokens}
+                disabled={resetting}
+                style={{
+                  fontSize: '0.8rem',
+                  padding: '0.4rem 0.875rem',
+                  color: '#fca5a5',
+                  borderColor: 'rgba(239,68,68,0.3)',
+                }}
+              >
+                {resetting ? 'Menghapus...' : '🗑️ Reset Semua Token'}
+              </button>
             </div>
-          ))}
+          )}
         </div>
       )}
 
