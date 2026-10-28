@@ -30,8 +30,11 @@ function generateRawToken(): string {
 
 /**
  * Generate sejumlah token unik dan insert ke database.
- * Menggunakan INSERT ON CONFLICT DO NOTHING sehingga duplikat
- * diabaikan secara diam-diam. Jika belum cukup, generate lebih.
+ *
+ * Strategi:
+ * - Setiap iterasi insert TEPAT sejumlah yang masih dibutuhkan (tidak ada buffer).
+ * - Jika ada konflik unik (23505), seluruh batch gagal → coba lagi dengan token baru.
+ * - Ini memastikan jumlah token di DB == jumlah yang diminta, tidak lebih.
  *
  * @param count Jumlah token yang diinginkan (1–500)
  * @param batch Label angkatan/batch
@@ -52,33 +55,35 @@ export async function generateTokens(
     }
 
     const needed = count - allInserted.length;
-    // Generate sedikit lebih banyak dari yang dibutuhkan sebagai buffer
-    const candidates = Array.from(
-      { length: Math.ceil(needed * 1.1) + 5 },
-      generateRawToken
+
+    // Generate TEPAT sejumlah yang masih dibutuhkan — tanpa buffer.
+    // Buffer menyebabkan token ekstra masuk DB tanpa dikembalikan ke user.
+    const candidates = Array.from({ length: needed }, generateRawToken);
+
+    // Hapus duplikat internal dan token yang sudah ada di sesi ini
+    const uniqueNew = [...new Set(candidates)].filter(
+      (c) => !allInserted.includes(c)
     );
 
-    // Hapus duplikat dalam batch kandidat itu sendiri
-    const unique = [...new Set(candidates)];
-    // Juga excludes token yang sudah ada di allInserted sesi ini
-    const uniqueNew = unique.filter((c) => !allInserted.includes(c));
+    if (uniqueNew.length === 0) {
+      // Sangat jarang: seluruh kandidat duplikat internal → coba lagi
+      rounds++;
+      continue;
+    }
 
-    // INSERT dengan ignoreDuplicates — token yang bentrok di DB diabaikan
-    // PENTING: tidak pakai upsert agar .select() hanya kembalikan baris BARU
+    // INSERT — tidak pakai upsert agar .select() hanya kembalikan baris BARU.
+    // Jika ada konflik di DB (23505), seluruh batch gagal → loop lanjut dengan token baru.
     const { data, error } = await supabase
       .from('tokens')
-      .insert(
-        uniqueNew.map((code) => ({ code, batch, used: false })),
-        { defaultToNull: false }
-      )
+      .insert(uniqueNew.map((code) => ({ code, batch, used: false })))
       .select('code');
 
     if (error) {
-      // Kode 23505 = unique_violation (duplikat) — aman diabaikan, coba lagi
       if (error.code !== '23505') {
+        // Error lain yang tidak terduga
         throw new Error(`Gagal insert token: ${error.message}`);
       }
-      // Ada sebagian bentrok → lanjut iterasi berikutnya
+      // Konflik unik → generate ulang token baru di iterasi berikutnya
       rounds++;
       continue;
     }
@@ -90,6 +95,8 @@ export async function generateTokens(
     rounds++;
   }
 
-  // Kembalikan tepat sejumlah yang diminta (tidak lebih)
-  return allInserted.slice(0, count);
+  // Kembalikan tepat sejumlah yang diminta.
+  // Karena uniqueNew bisa < needed (ada duplikat internal), allInserted
+  // mungkin sedikit kurang dari count → loop sudah handle itu.
+  return allInserted;
 }
