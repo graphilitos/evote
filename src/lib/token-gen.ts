@@ -60,19 +60,27 @@ export async function generateTokens(
 
     // Hapus duplikat dalam batch kandidat itu sendiri
     const unique = [...new Set(candidates)];
+    // Juga excludes token yang sudah ada di allInserted sesi ini
+    const uniqueNew = unique.filter((c) => !allInserted.includes(c));
 
-    // Upsert dengan ignoreDuplicates — token yang sudah ada di DB diabaikan
-    // Ini setara dengan INSERT ... ON CONFLICT DO NOTHING
+    // INSERT dengan ignoreDuplicates — token yang bentrok di DB diabaikan
+    // PENTING: tidak pakai upsert agar .select() hanya kembalikan baris BARU
     const { data, error } = await supabase
       .from('tokens')
-      .upsert(
-        unique.map((code) => ({ code, batch, used: false })),
-        { onConflict: 'code', ignoreDuplicates: true }
+      .insert(
+        uniqueNew.map((code) => ({ code, batch, used: false })),
+        { defaultToNull: false }
       )
       .select('code');
 
     if (error) {
-      throw new Error(`Gagal insert token: ${error.message}`);
+      // Kode 23505 = unique_violation (duplikat) — aman diabaikan, coba lagi
+      if (error.code !== '23505') {
+        throw new Error(`Gagal insert token: ${error.message}`);
+      }
+      // Ada sebagian bentrok → lanjut iterasi berikutnya
+      rounds++;
+      continue;
     }
 
     if (data && data.length > 0) {
